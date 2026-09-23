@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Banner payload validator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Aditya Birla brand */
+  --brand:#D51D25; --brand-deep:#991010; --brand-orange:#F68529; --brand-gold:#F5D34F;
+  --brand-tint:#FDF0F0; --brand-tint-2:#FAE0E0;
+  --ink:#241F20; --ink-2:#5C5458; --ink-3:#8A8286;
+  --paper:#FAF8F7; --surface:#FFFFFF; --rule:#E4DEDC; --rule-2:#F0EBE9;
+  --err:#B3161D; --err-bg:#FDECEC; --err-mark:#F9C9C9;
+  --warn:#8A4A05; --warn-bg:#FEF3E3; --warn-mark:#FBDDB4;
+  --ok:#106B46; --ok-bg:#E5F3EC;
+  --focus:#1F5FBF;
+  --code-bg:#FBFAF9;
+  --shadow:0 1px 2px rgba(36,31,32,.06), 0 4px 16px rgba(36,31,32,.05);
+  --sans:"Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{width:100%;max-width:min(1500px,100%);margin:0 auto;padding:0 clamp(16px,3vw,44px) 72px}
+
+/* masthead */
+.mast{border-bottom:1px solid var(--rule);background:var(--surface);margin-bottom:26px}
+.mast .bar{height:4px;background:linear-gradient(90deg,var(--brand-gold),var(--brand-orange) 45%,var(--brand) 78%,var(--brand-deep))}
+.mast .inner{width:100%;max-width:min(1500px,100%);margin:0 auto;padding:22px clamp(16px,3vw,44px) 20px}
+h1{font-size:clamp(22px,2.4vw,30px);line-height:1.12;margin:0 0 6px;font-weight:700;letter-spacing:-0.02em}
+.lede{margin:0;color:var(--ink-2);max-width:none;font-size:clamp(14.5px,1.05vw,16.5px)}
+
+/* segmented tabs */
+.tabs{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--rule-2);border:1px solid var(--rule);margin-bottom:22px}
+.tab{appearance:none;background:none;border:0;border-radius:9px;padding:9px 18px;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;transition:background .12s,color .12s}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--brand);color:#fff;box-shadow:var(--shadow)}
+.tab:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.panel[hidden]{display:none}
+
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+label.lbl{display:block;font-weight:600;margin-bottom:8px}
+.hint{color:var(--ink-3);font-size:13px}
+textarea{width:100%;min-height:170px;resize:vertical;padding:12px 14px;border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1.6}
+textarea:focus{border-color:var(--brand)}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.btn{appearance:none;font:inherit;font-weight:600;border-radius:10px;padding:10px 20px;cursor:pointer;border:1px solid var(--brand);background:var(--brand);color:#fff;box-shadow:var(--shadow);transition:background .12s}
+.btn:hover{background:var(--brand-deep);border-color:var(--brand-deep)}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--rule);box-shadow:none}
+.btn.ghost:hover{background:var(--rule-2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* verdict */
+.result{margin-top:26px}
+.verdict{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 20px;border-radius:14px;color:#fff;box-shadow:var(--shadow)}
+.verdict.error{background:linear-gradient(100deg,var(--brand-deep),var(--brand))}
+.verdict.warning{background:linear-gradient(100deg,#9A5B07,var(--brand-orange))}
+.verdict.pass{background:linear-gradient(100deg,#0B5537,#178A58)}
+.verdict .word{font-size:21px;font-weight:700;line-height:1.15;letter-spacing:-0.01em}
+.verdict .sub{opacity:.92;font-weight:500}
+.note{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--brand-tint);border:1px solid var(--brand-tint-2);color:var(--ink-2);font-size:14px}
+
+/* issues: one card, three labelled parts */
+.sect-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:24px 0 10px}
+.sect-head h3{margin:0;font-size:16px;font-weight:700}
+.issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.issue{border:1px solid var(--rule);border-left:5px solid var(--rule);border-radius:12px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow)}
+.issue.error{border-left-color:var(--brand)}
+.issue.warning{border-left-color:var(--brand-orange)}
+.issue-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 16px;border-bottom:1px solid var(--rule-2);background:var(--rule-2)}
+.issue.error .issue-top{background:var(--err-bg)}
+.issue.warning .issue-top{background:var(--warn-bg)}
+.sev{font-size:11.5px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--brand);color:#fff}
+.issue.warning .sev{background:var(--brand-orange);color:#3D2200}
+.field{font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);padding:2px 8px;border-radius:6px}
+.where{margin-left:auto;font-size:12.5px;color:var(--ink-2)}
+.issue-body{padding:12px 16px 14px;display:grid;gap:10px}
+.part{display:grid;grid-template-columns:78px 1fr;gap:12px;align-items:baseline}
+.part .k{font-size:11.5px;font-weight:700;color:var(--ink-3);letter-spacing:.03em;padding-top:2px}
+.part .v{font-size:14.5px}
+.part.fix .v{color:var(--ink-2)}
+.jump{appearance:none;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:5px 12px;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.jump:hover{background:var(--rule-2);border-color:var(--ink-3)}
+
+.code-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin:22px 0 8px}
+.code-head h3{margin:0;font-size:15px;font-weight:700}
+pre.code{margin:0;width:100%;padding:14px;border:1px solid var(--rule);border-radius:12px;background:var(--code-bg);font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-all;max-height:360px;overflow:auto}
+mark{color:inherit;border-radius:3px;padding:1px 0}
+mark.m-error{background:var(--err-mark);box-shadow:inset 0 -2px 0 var(--brand)}
+mark.m-warning{background:var(--warn-mark);box-shadow:inset 0 -2px 0 var(--brand-orange)}
+mark.caret{background:var(--brand);color:#fff;padding:1px 3px;font-weight:500}
+mark.flash{animation:flash 1.2s ease-out 1}
+@keyframes flash{0%{outline:3px solid var(--focus)}100%{outline:3px solid transparent}}
+@media (prefers-reduced-motion: reduce){mark.flash{animation:none;outline:3px solid var(--focus)}}
+
+/* bulk */
+.steps{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:16px}
+.step{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+.step .num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;font-size:13px;font-weight:700;margin-bottom:8px}
+.step h4{margin:0 0 4px;font-size:15px}
+.step p{margin:0;color:var(--ink-2);font-size:14px}
+.step table{border-collapse:collapse;margin-top:10px;font-family:var(--mono);font-size:11.5px;width:100%}
+.step td,.step th{border:1px solid var(--rule);padding:4px 8px;text-align:left;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.step th{background:var(--rule-2);color:var(--ink)}
+.drop{display:flex;flex-direction:column;gap:10px;align-items:flex-start;padding:20px;border:2px dashed var(--rule);border-radius:14px;background:var(--surface)}
+.drop.over{border-color:var(--brand);background:var(--brand-tint)}
+.filelabel{display:inline-flex;align-items:center;gap:8px}
+.drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.status-line{margin-top:14px;color:var(--ink-2)}
+.status-line.err{color:var(--err);font-weight:500}
+
+.filterbar{margin:24px 0 12px}
+.filterbar .lbl{margin-bottom:8px}
+.summary{display:flex;gap:10px;flex-wrap:wrap}
+.chip{appearance:none;font:inherit;display:flex;align-items:center;gap:9px;padding:10px 16px;border-radius:999px;border:1.5px solid var(--rule);background:var(--surface);color:var(--ink-2);cursor:pointer;box-shadow:var(--shadow);transition:transform .1s,border-color .12s}
+.chip:hover{border-color:var(--ink-3);transform:translateY(-1px)}
+.chip .n{font-size:17px;font-weight:700;color:var(--ink)}
+.chip .t{font-size:14px;font-weight:600}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-3)}
+.chip.c-error .dot{background:var(--brand)} .chip.c-warning .dot{background:var(--brand-orange)} .chip.c-pass .dot{background:var(--ok)}
+.chip[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-tint);color:var(--ink)}
+.chip[aria-pressed="true"] .n{color:var(--brand-deep)}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 12px}
+.toolbar input[type=search]{font:inherit;padding:9px 13px;border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink);min-width:220px}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:14px;background:var(--surface);box-shadow:var(--shadow)}
+table.res{width:100%;border-collapse:collapse}
+table.res th{font-size:12.5px;text-align:left;color:var(--ink-2);font-weight:600;padding:11px 16px;border-bottom:1px solid var(--rule);white-space:nowrap;background:var(--rule-2)}
+table.res td{padding:12px 16px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+table.res tr.main{cursor:pointer}
+table.res tr.main:hover td{background:var(--brand-tint)}
+table.res td.id{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.badge.error{background:var(--err-bg);color:var(--err)} .badge.warning{background:var(--warn-bg);color:var(--warn)} .badge.pass{background:var(--ok-bg);color:var(--ok)}
+.first{color:var(--ink-2);font-size:14px}
+.row-toggle{appearance:none;background:none;border:0;font:inherit;color:var(--ink-3);cursor:pointer;padding:0 4px;font-size:13px}
+tr.detail td{background:var(--paper);padding:16px 18px 20px}
+.empty{padding:26px;text-align:center;color:var(--ink-3)}
+details.rules{margin-top:40px;border-top:1px solid var(--rule);padding-top:16px}
+details.rules summary{cursor:pointer;font-weight:600}
+details.rules ul{padding-left:20px;color:var(--ink-2);max-width:none}
+details.rules li{margin:5px 0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:620px){
+  h1{font-size:22px}
+  .tabs{display:flex;width:100%}
+  .tab{flex:1;padding:9px 8px;text-align:center}
+  .part{grid-template-columns:1fr;gap:2px}
+  .where{margin-left:0;width:100%}
+  table.res th:nth-child(1),table.res td:nth-child(1){display:none}
+  table.res th:nth-child(4),table.res td:nth-child(4){display:none}
+  .toolbar input[type=search]{min-width:0;flex:1}
+}
+</style>
+</head>
+<body>
+<div class="mast"><div class="bar"></div><div class="inner">
+  <h1>Banner payload validator</h1>
+  <p class="lede">Check a recommended-banner payload before the campaign goes live. Catches broken JSON, missing or misspelled keys, wrong value types and URLs that won't open.</p>
+</div></div>
+<div class="wrap">
+  <div class="tabs" role="tablist" aria-label="Check mode">
+    <button class="tab" role="tab" id="tab-one" aria-selected="true" aria-controls="panel-one">Check one payload</button>
+    <button class="tab" role="tab" id="tab-bulk" aria-selected="false" aria-controls="panel-bulk" tabindex="-1">Check many at once</button>
+  </div>
+
+  <section class="panel" id="panel-one" role="tabpanel" aria-labelledby="tab-one">
+    <div class="card">
+      <label class="lbl" for="payload">Paste the banner JSON</label>
+      <textarea id="payload" spellcheck="false" autocomplete="off" placeholder='[ { "slotID": 14, "deepLink": "abcdupi://inappcampaign?...", ... } ]'></textarea>
+      <div class="actions">
+        <button class="btn" id="btn-check">Validate</button>
+        <button class="btn ghost" id="btn-clear">Clear</button>
+        <span class="hint">Runs automatically when you paste. Ctrl + Enter also works.</span>
+      </div>
+    </div>
+    <div class="result" id="one-result" aria-live="polite"></div>
+  </section>
+
+  <section class="panel" id="panel-bulk" role="tabpanel" aria-labelledby="tab-bulk" hidden>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <h4>Build the sheet</h4>
+        <p>Two columns, headers in the first row, one campaign per row.</p>
+        <table><tr><th>Campaign ID</th><th>Banner JSON</th></tr><tr><td>1783516012</td><td>[ { "slotID": 20, ... } ]</td></tr></table>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h4>Save it as .xlsx or .csv</h4>
+        <p>Excel, Google Sheets and tab-separated .txt all work. An old .xls needs Save As &rarr; .xlsx first. Only the first sheet is read.</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h4>Upload and review</h4>
+        <p>Every campaign is checked in your browser. Nothing is uploaded anywhere. Filter to the ones with problems and open a row to see the details.</p>
+      </div>
+    </div>
+    <div class="drop" id="drop">
+      <span class="filelabel"><button class="btn" id="btn-pick">Choose a file</button><span class="hint">or drag it here</span></span>
+      <input type="file" id="file" accept=".xlsx,.csv,.tsv,.txt">
+    </div>
+    <div class="status-line" id="bulk-status" aria-live="polite"></div>
+    <div id="bulk-result" hidden>
+      <div class="filterbar">
+        <span class="lbl" id="filter-label">Show</span>
+        <div class="summary" id="summary" role="group" aria-labelledby="filter-label"></div>
+      </div>
+      <div class="toolbar">
+        <label class="sr" for="search">Search campaign ID</label>
+        <input type="search" id="search" placeholder="Search campaign ID">
+        <button class="btn ghost" id="btn-download" hidden>Download report (.xlsx)</button>
+        <button class="btn ghost" id="btn-copy">Copy report</button>
+        <span class="hint" id="export-msg" aria-live="polite"></span>
+      </div>
+      <div class="tablewrap">
+        <table class="res">
+          <thead><tr><th>Row</th><th>Campaign ID</th><th>Result</th><th>First problem</th><th><span class="sr">Details</span></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <details class="rules">
+    <summary>What gets checked</summary>
+    <ul id="rules-list"></ul>
+  </details>
+</div>
+<script>
+/* Banner payload validator engine.
+   Edit CONFIG to change what counts as an allowed URL. */
+var CONFIG = {
+  requiredKeys: [
+    "slotID", "deepLink", "imageUrl", "iconUrl",
+    "isTermsandConditionAvailable", "isTermsandConditionClickable", "isTermsandConditionPage",
+    "seconds", "termsandConditionBottomSheetContent", "termsandConditionPageContent"
+  ],
+  deepLinkPrefixes: [
+    "abcd://adityabirlacapitaldigital.com/",
+    "abcdupi://inappcampaign?",
+    "https://www.adityabirlacapital.com/",
+    "https://customer.credilio.in/"
+  ],
+  imageHostPrefix: "https://firebasestorage.googleapis.com/v0/b/abcapital-92ca5.appspot.com/o/",
+  imageExtensions: ["jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp", "png", "webp"],
+  tncPrefix: "https://www.adityabirlacapital.com/abcd/terms-conditions/",
+  expectedSeconds: 5
+};
+
+/* ---------- position-tracking JSON parser ---------- */
+function parseDetailed(text) {
+  var i = 0, n = text.length;
+  var duplicates = [], loc = {};
+
+  function fail(code, pos, extra) {
+    var e = { parseError: true, code: code, pos: pos };
+    if (extra) for (var k in extra) e[k] = extra[k];
+    throw e;
+  }
+  function ws() {
+    while (i < n) {
+      var c = text.charCodeAt(i);
+      if (c === 32 || c === 9 || c === 10 || c === 13) i++; else break;
+    }
+  }
+  function parseString() {
+    var start = i; i++;
+    var out = "";
+    while (true) {
+      if (i >= n) fail("unterminated_string", start);
+      var c = text[i];
+      if (c === '"') { i++; return out; }
+      if (c === "\\") {
+        var e = text[i + 1];
+        var map = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+        if (e === "u") {
+          var hex = text.substr(i + 2, 4);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) fail("bad_escape", i, { start: start });
+          out += String.fromCharCode(parseInt(hex, 16)); i += 6; continue;
+        }
+        if (!(e in map)) fail("bad_escape", i, { start: start });
+        out += map[e]; i += 2; continue;
+      }
+      if (text.charCodeAt(i) < 0x20) fail("control_char", i, { start: start });
+      out += c; i++;
+    }
+  }
+  function parseNumber() {
+    var m = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/.exec(text.slice(i));
+    if (!m) fail("bad_number", i);
+    i += m[0].length;
+    return Number(m[0]);
+  }
+  function parseValue(path, ctx) {
+    ws();
+    if (i >= n) fail("eof_value", i, { ctx: ctx });
+    var c = text[i];
+    if (c === "{") return parseObject(path);
+    if (c === "[") return parseArray(path);
+    if (c === '"') return parseString();
+    if (c === "-" || (c >= "0" && c <= "9")) return parseNumber();
+    if (/[A-Za-z]/.test(c)) {
+      var w = /^[A-Za-z_][A-Za-z0-9_.:/-]*/.exec(text.slice(i))[0];
+      if (w === "true") { i += 4; return true; }
+      if (w === "false") { i += 5; return false; }
+      if (w === "null") { i += 4; return null; }
+      fail("bad_literal", i, { word: w, ctx: ctx });
+    }
+    fail("unexpected_value", i, { ch: c, ctx: ctx });
+  }
+  function parseObject(path) {
+    var open = i; i++;
+    var obj = {}, lastKey = null, commaPos = -1;
+    ws();
+    if (text[i] === "}") { i++; return obj; }
+    while (true) {
+      ws();
+      if (i >= n) fail("eof_obj", i, { open: open });
+      if (text[i] !== '"') {
+        if (text[i] === "}" && commaPos >= 0) fail("trailing_comma_obj", commaPos, { lastKey: lastKey });
+        fail("expected_key", i, { ch: text[i], lastKey: lastKey });
+      }
+      var ks = i;
+      var key = parseString();
+      var ke = i;
+      ws();
+      if (text[i] !== ":") fail("expected_colon", i, { key: key, ch: text[i] });
+      i++; ws();
+      var vs = i;
+      var childPath = path + "." + key;
+      var val = parseValue(childPath, { key: key });
+      var ve = i;
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        duplicates.push({ path: path, key: key, keyStart: ks, keyEnd: ke });
+      }
+      obj[key] = val;
+      loc[childPath] = { keyStart: ks, keyEnd: ke, valStart: vs, valEnd: ve };
+      lastKey = key;
+      ws();
+      if (text[i] === ",") { commaPos = i; i++; continue; }
+      if (text[i] === "}") { i++; return obj; }
+      if (i >= n) fail("eof_obj", i, { open: open, lastKey: lastKey });
+      fail("expected_comma_obj", i, { ch: text[i], lastKey: lastKey });
+    }
+  }
+  function parseArray(path) {
+    var open = i; i++;
+    var arr = [], commaPos = -1;
+    ws();
+    if (text[i] === "]") { i++; return arr; }
+    while (true) {
+      ws();
+      if (text[i] === "]" && commaPos >= 0) fail("trailing_comma_arr", commaPos);
+      var s = i;
+      var childPath = path + "[" + arr.length + "]";
+      var v = parseValue(childPath, { index: arr.length });
+      loc[childPath] = { valStart: s, valEnd: i };
+      arr.push(v);
+      ws();
+      if (text[i] === ",") { commaPos = i; i++; continue; }
+      if (text[i] === "]") { i++; return arr; }
+      if (i >= n) fail("eof_arr", i, { open: open });
+      fail("expected_comma_arr", i, { ch: text[i] });
+    }
+  }
+
+  try {
+    ws();
+    if (i >= n) return { ok: false, error: { parseError: true, code: "empty", pos: 0 } };
+    var value = parseValue("", null);
+    ws();
+    if (i < n) fail("trailing_text", i, { ch: text[i] });
+    return { ok: true, value: value, duplicates: duplicates, loc: loc };
+  } catch (e) {
+    if (e && e.parseError) return { ok: false, error: e };
+    throw e;
+  }
+}
+
+/* ---------- helpers ---------- */
+function lineCol(text, pos) {
+  var line = 1, col = 1;
+  for (var k = 0; k < pos && k < text.length; k++) {
+    if (text[k] === "\n") { line++; col = 1; } else col++;
+  }
+  return { line: line, col: col };
+}
+function describeChar(ch) {
+  if (ch === undefined) return "the end of the text";
+  var code = ch.charCodeAt(0);
+  var names = {
+    0xa0: "an invisible non-breaking space", 0x200b: "an invisible zero-width space",
+    0xfeff: "an invisible byte-order mark", 0x201c: "a curly quote \u201C", 0x201d: "a curly quote \u201D",
+    0x2018: "a curly quote \u2018", 0x2019: "a curly quote \u2019"
+  };
+  if (names[code]) return names[code];
+  return "\u201C" + ch + "\u201D";
+}
+function peekKey(text, pos) {
+  var m = /^"([^"\\]{1,60})"\s*:/.exec(text.slice(pos));
+  return m ? m[1] : null;
+}
+function isCurly(ch) { return /[\u201C\u201D\u201E\u201F\u2033\u2018\u2019\u201A\u201B\u2032]/.test(ch || ""); }
+
+function explainParseError(text, e) {
+  var ch = e.code === "trailing_comma_obj" || e.code === "trailing_comma_arr" ? "," : text[e.pos];
+  var here = "at " + describeChar(ch);
+  var msg, fix;
+  var last = e.lastKey ? "\u201C" + e.lastKey + "\u201D" : null;
+
+  // Character-specific diagnoses first: they are the most common copy/paste errors.
+  if (ch === "'" ) {
+    if (text[e.pos + 1] === "'") {
+      msg = "Two single quotes ('') were typed where a double quote (\") belongs.";
+    } else {
+      msg = "A single quote (') was used where a double quote (\") belongs.";
+    }
+    fix = "Replace '' or ' with a straight double quote \".";
+  } else if (isCurly(ch)) {
+    msg = "A curly quote (" + ch + ") was found. JSON only accepts straight quotes.";
+    fix = "Replace it with a straight double quote \". Curly quotes usually come from Word, Excel autocorrect or chat apps.";
+  } else if (ch === "\\" && text[e.pos + 1] === '"') {
+    msg = "Backslash-escaped quotes (\\\") found. This is the escaped copy of the payload from the raw API response.";
+    fix = "Remove the backslashes so each \\\" becomes \".";
+  } else if (ch && /[\u00A0\u200B\uFEFF]/.test(ch)) {
+    msg = "An invisible character (" + describeChar(ch) + ") is sitting between values.";
+    fix = "Delete the space at this spot and retype it as a normal space.";
+  } else {
+    switch (e.code) {
+      case "empty": msg = "The payload is empty."; fix = "Paste the banner JSON."; break;
+      case "unterminated_string": {
+        var rest = text.slice(e.pos);
+        var dq = rest.indexOf("''");
+        if (dq >= 0) {
+          msg = "A text value is never closed. It looks like '' was typed instead of a closing double quote.";
+          fix = "Replace '' with \" near line " + lineCol(text, e.pos + dq).line + ", column " + lineCol(text, e.pos + dq).col + ".";
+          e.pos2 = e.pos + dq;
+        } else {
+          msg = "A text value starting here is never closed. The closing double quote (\") is missing.";
+          fix = "Add the missing \" at the end of this value.";
+        }
+        break;
+      }
+      case "control_char":
+        msg = "A line break or tab sits inside a text value.";
+        fix = "Remove the line break so the value stays on one line (or write it as \\n).";
+        break;
+      case "bad_escape":
+        msg = "A backslash (\\) inside a text value is not a valid escape.";
+        fix = "Remove the backslash, or write \\\\ if you really need one.";
+        break;
+      case "expected_comma_obj": {
+        var nk = peekKey(text, e.pos);
+        if (ch === '"' && nk) {
+          msg = "Missing comma between " + (last || "the previous value") + " and \u201C" + nk + "\u201D.";
+          fix = "Add a comma , after the value of " + (last || "the previous key") + ".";
+        } else if (ch === "{") {
+          msg = "Missing comma, or a stray { after " + (last || "a value") + ".";
+          fix = "Check the characters right after the value of " + (last || "the previous key") + ".";
+        } else {
+          msg = "Unexpected " + describeChar(ch) + " after the value of " + (last || "a key") + ".";
+          fix = "This usually means a missing or extra double quote in the value of " + (last || "the previous key") + ", or a missing comma.";
+        }
+        break;
+      }
+      case "expected_comma_arr":
+        msg = "Unexpected " + describeChar(ch) + " inside the outer [ ].";
+        fix = ch === "{" ? "Add a comma between the two { } objects." : "Check for a missing comma or an extra character.";
+        break;
+      case "trailing_comma_obj":
+        msg = "Extra comma after the last key " + (last || "") + ".";
+        fix = "Delete the comma before the closing }.";
+        break;
+      case "trailing_comma_arr":
+        msg = "Extra comma before the closing ].";
+        fix = "Delete the comma.";
+        break;
+      case "expected_key": {
+        if (/[A-Za-z_]/.test(ch || "")) {
+          var w = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(e.pos))[0];
+          msg = "The key " + w + " is not wrapped in double quotes.";
+          fix = "Write it as \"" + w + "\".";
+        } else if (ch === ",") {
+          msg = "Two commas in a row, or a comma with no key after it.";
+          fix = "Delete the extra comma.";
+        } else {
+          msg = "Expected a key in double quotes, but found " + describeChar(ch) + ".";
+          fix = "Each entry must look like \"key\": value.";
+        }
+        break;
+      }
+      case "expected_colon": {
+        var looksValue = /:\/\/|\s|^\d/.test(e.key) || e.key.length > 40;
+        var shortKey = e.key.length > 46 ? e.key.slice(0, 43) + "\u2026" : e.key;
+        if (looksValue) {
+          msg = "\u201C" + shortKey + "\u201D is being read as a key, which means a double quote is missing or misplaced just before it.";
+          fix = "Check the quotes around the value that comes before this point \u2014 usually one \" is missing, doubled, or typed as ''.";
+        } else {
+          msg = "Missing colon after the key \u201C" + shortKey + "\u201D.";
+          fix = "Write it as \"" + shortKey + "\": value.";
+        }
+        break;
+      }
+      case "bad_literal": {
+        var k2 = e.ctx && e.ctx.key ? " for \u201C" + e.ctx.key + "\u201D" : "";
+        var low = e.word.toLowerCase();
+        if (low === "true" || low === "false" || low === "null") {
+          msg = "\u201C" + e.word + "\u201D" + k2 + " must be lowercase.";
+          fix = "Write " + low + ".";
+        } else {
+          msg = "The value " + e.word + k2 + " is not in double quotes.";
+          fix = "Text and URLs must be wrapped in \" \". Only numbers and true/false go without quotes.";
+        }
+        break;
+      }
+      case "unexpected_value": {
+        var k3 = e.ctx && e.ctx.key ? " for \u201C" + e.ctx.key + "\u201D" : "";
+        if (ch === "," || ch === "}") {
+          msg = "The value" + k3 + " is missing.";
+          fix = "Add a value after the colon.";
+        } else {
+          msg = "Unexpected " + describeChar(ch) + " where a value" + k3 + " should start.";
+          fix = "Values are \"text\", numbers, or true/false.";
+        }
+        break;
+      }
+      case "eof_value": case "eof_obj": case "eof_arr":
+        msg = "The payload ends too early. A closing } or ] is missing.";
+        fix = "Make sure it ends with } ].";
+        break;
+      case "trailing_text":
+        msg = "Extra text found after the closing ].";
+        fix = "Delete everything after the final ].";
+        break;
+      case "bad_number":
+        msg = "Invalid number."; fix = "Use digits only, e.g. 14."; break;
+      default:
+        msg = "Invalid JSON " + here + "."; fix = "Check this spot for a missing comma or quote.";
+    }
+  }
+  var p = e.pos2 != null ? e.pos2 : e.pos;
+  var lc = lineCol(text, p);
+  var len = text.substr(p, 2) === "''" ? 2 : 1;
+  return {
+    severity: "error", field: "Syntax", message: msg, fix: fix,
+    pos: p, len: len, line: lc.line, col: lc.col, syntax: true
+  };
+}
+
+function levenshtein(a, b) {
+  var m = a.length, n = b.length, d = [];
+  for (var x = 0; x <= m; x++) { d[x] = [x]; }
+  for (var y = 0; y <= n; y++) d[0][y] = y;
+  for (x = 1; x <= m; x++) for (y = 1; y <= n; y++) {
+    d[x][y] = Math.min(d[x - 1][y] + 1, d[x][y - 1] + 1, d[x - 1][y - 1] + (a[x - 1] === b[y - 1] ? 0 : 1));
+  }
+  return d[m][n];
+}
+function typeName(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "a list";
+  if (typeof v === "string") return "text";
+  if (typeof v === "number") return "a number";
+  if (typeof v === "boolean") return "true/false";
+  return "an object";
+}
+
+function checkHtmlBalance(html) {
+  var voids = { br: 1, hr: 1, img: 1, input: 1, meta: 1, link: 1, wbr: 1 };
+  var re = /<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9]*)[^>]*?(\/?)>/g, m, stack = [], problems = [];
+  while ((m = re.exec(html))) {
+    var tag = m[2].toLowerCase();
+    if (voids[tag] || m[3] === "/") continue;
+    if (!m[1]) stack.push(tag);
+    else {
+      var idx = stack.lastIndexOf(tag);
+      if (idx === -1) problems.push("</" + tag + "> has no opening tag");
+      else {
+        for (var j = stack.length - 1; j > idx; j--) problems.push("<" + stack[j] + "> is not closed");
+        stack.length = idx;
+      }
+    }
+  }
+  for (var k = 0; k < stack.length; k++) problems.push("<" + stack[k] + "> is not closed");
+  if (/<[^>]*$/.test(html)) problems.push("a tag is cut off (missing >)");
+  return problems;
+}
+
+
+/* ---------- auto-repair: find key/value/URL problems even when syntax is broken ---------- */
+function repairText(text) {
+  var work = text, steps = [], guard = 0;
+  while (guard++ < 20) {
+    var p = parseDetailed(work);
+    if (p.ok) return { ok: true, text: work, steps: steps, value: p.value, loc: p.loc, duplicates: p.duplicates };
+    var e = p.error, pos = e.pos, ch = work[pos], before = work, label = null;
+    if (e.code === "empty") return { ok: false };
+    if (ch === "'" && work[pos + 1] === "'") { work = work.slice(0, pos) + '"' + work.slice(pos + 2); label = "replaced '' with \""; }
+    else if (ch === "'") { work = work.slice(0, pos) + '"' + work.slice(pos + 1); label = "replaced ' with \""; }
+    else if (isCurly(ch)) { work = work.slice(0, pos) + '"' + work.slice(pos + 1); label = "replaced a curly quote with \""; }
+    else if (ch && /[\u00A0\u200B\uFEFF]/.test(ch)) { work = work.slice(0, pos) + " " + work.slice(pos + 1); label = "removed an invisible character"; }
+    else if (e.code === "unterminated_string") {
+      var rest = work.slice(pos), dq = rest.indexOf("''");
+      if (dq >= 0) { work = work.slice(0, pos + dq) + '"' + work.slice(pos + dq + 2); label = "replaced '' with \""; }
+      else return { ok: false };
+    }
+    else if (e.code === "control_char") { work = work.slice(0, pos) + " " + work.slice(pos + 1); label = "removed a line break inside a value"; }
+    else if (e.code === "bad_escape") { work = work.slice(0, pos) + work.slice(pos + 1); label = "removed a stray backslash"; }
+    else if (e.code === "expected_comma_obj" || e.code === "expected_comma_arr") { work = work.slice(0, pos) + "," + work.slice(pos); label = "added a missing comma"; }
+    else if (e.code === "trailing_comma_obj" || e.code === "trailing_comma_arr") { work = work.slice(0, pos) + work.slice(pos + 1); label = "removed an extra comma"; }
+    else if (e.code === "expected_colon") { work = work.slice(0, pos) + ":" + work.slice(pos); label = "added a missing colon"; }
+    else if (e.code === "expected_key" && /[A-Za-z_]/.test(ch || "")) {
+      var w = /^[A-Za-z_][A-Za-z0-9_]*/.exec(work.slice(pos))[0];
+      work = work.slice(0, pos) + '"' + w + '"' + work.slice(pos + w.length); label = "put quotes around a key";
+    }
+    else if (e.code === "bad_literal") {
+      var lowered = e.word.toLowerCase();
+      if (lowered === "true" || lowered === "false" || lowered === "null") { work = work.slice(0, pos) + lowered + work.slice(pos + e.word.length); label = "made " + e.word + " lowercase"; }
+      else { work = work.slice(0, pos) + '"' + e.word + '"' + work.slice(pos + e.word.length); label = "put quotes around a value"; }
+    }
+    else if (e.code === "trailing_text") { work = work.slice(0, pos); label = "ignored text after the closing ]"; }
+    else if (e.code === "eof_obj") { work = work + "}"; label = "added a closing }"; }
+    else if (e.code === "eof_arr") { work = work + "]"; label = "added a closing ]"; }
+    else if (e.code === "eof_value") { work = work + '""'; label = "added a missing value"; }
+    else return { ok: false };
+    if (work === before) return { ok: false };
+    if (label && steps.indexOf(label) < 0) steps.push(label);
+  }
+  return { ok: false };
+}
+
+function checkRepaired(text) {
+  var r = repairText(text);
+  if (!r.ok) return null;
+  var issues = [];
+  var value = r.value;
+  if (Array.isArray(value)) {
+    value.forEach(function (v, idx) {
+      if (v && typeof v === "object" && !Array.isArray(v)) checkObject(v, "[" + idx + "]", r.loc, issues, value.length > 1);
+    });
+  } else if (value && typeof value === "object") {
+    checkObject(value, "", r.loc, issues, false);
+  } else return null;
+  r.duplicates.forEach(function (d) {
+    issues.push({ severity: "error", field: d.key, message: "The key \u201C" + d.key + "\u201D appears more than once.", fix: "Delete the duplicate.", range: [d.keyStart, d.keyEnd] });
+  });
+  issues.forEach(function (x) { if (x.range) { var lc = lineCol(r.text, x.range[0]); x.line = lc.line; x.col = lc.col; } });
+  var errs = issues.filter(function (x) { return x.severity === "error"; }).length;
+  return { text: r.text, steps: r.steps, issues: issues, errors: errs, warnings: issues.length - errs };
+}
+
+/* ---------- payload rules ---------- */
+function validatePayload(rawText) {
+  var text = rawText == null ? "" : String(rawText);
+  var issues = [];
+  var note = null;
+  var parsed = parseDetailed(text);
+
+  if (!parsed.ok) {
+    issues.push(explainParseError(text, parsed.error));
+    var extra = null;
+    try { extra = checkRepaired(text); } catch (err) { extra = null; }
+    return finish(text, issues, note, extra);
+  }
+
+  var value = parsed.value;
+
+  // Full API response pasted? Pull the banner JSON out and validate that instead.
+  if (value && typeof value === "object" && !Array.isArray(value) && value.response && value.response.target) {
+    var t = value.response.target, inner = null, from = null;
+    try { inner = t.content["1"].msg.wzrk_default.customKVData[0].value.text; from = 'content["1"]'; } catch (e1) {}
+    if (inner == null) try { inner = t.content["2"].msg.wzrk_default.customKVData[0].value.text; from = 'content["2"]'; } catch (e2) {}
+    if (inner == null) try { inner = t.msg.customKVData[0].value.text; from = "msg"; } catch (e3) {}
+    if (typeof inner === "string") {
+      var r = validatePayload(inner);
+      r.note = "Full API response detected (campaign " + (t._id || "unknown") + "). Checked the banner JSON inside it, taken from " + from + ".";
+      return r;
+    }
+    issues.push({ severity: "error", field: "Structure", message: "This is a full API response, but no banner JSON was found inside customKVData.", fix: "Paste only the banner JSON." });
+    return finish(text, issues, note);
+  }
+
+  // Double-encoded string, e.g. "[ { \"slotID\": ... } ]"
+  if (typeof value === "string") {
+    var trimmed = value.trim();
+    if (trimmed[0] === "[" || trimmed[0] === "{") {
+      var r2 = validatePayload(value);
+      r2.note = "The payload was pasted as an escaped text string. Checked the JSON inside it. Paste it without the outer quotes and backslashes when you set up the campaign.";
+      return r2;
+    }
+  }
+
+  parsed.duplicates.forEach(function (d) {
+    issues.push({
+      severity: "error", field: d.key,
+      message: "The key \u201C" + d.key + "\u201D appears more than once. The app will silently use only the last one.",
+      fix: "Delete the duplicate.", range: [d.keyStart, d.keyEnd]
+    });
+  });
+
+  var objects;
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      issues.push({ severity: "error", field: "Structure", message: "The [ ] list is empty.", fix: "Put the banner object { ... } inside [ ]." });
+      return finish(text, issues, note);
+    }
+    if (value.length > 1) {
+      issues.push({ severity: "error", field: "Structure", message: "Found " + value.length + " banner objects. Each campaign should have exactly one.", fix: "Keep one { ... } inside [ ]." });
+    }
+    objects = value.map(function (v, idx) { return { v: v, path: "[" + idx + "]" }; });
+  } else if (value && typeof value === "object") {
+    issues.push({ severity: "error", field: "Structure", message: "The banner object is not wrapped in [ ].", fix: "Add [ at the start and ] at the end." });
+    objects = [{ v: value, path: "" }];
+  } else {
+    issues.push({ severity: "error", field: "Structure", message: "The payload is " + typeName(value) + ", not a banner object.", fix: "It should look like [ { \"slotID\": ..., ... } ]." });
+    return finish(text, issues, note);
+  }
+
+  objects.forEach(function (o) {
+    if (!o.v || typeof o.v !== "object" || Array.isArray(o.v)) {
+      issues.push({ severity: "error", field: "Structure", message: "An item inside [ ] is " + typeName(o.v) + " instead of a { } object." });
+      return;
+    }
+    checkObject(o.v, o.path, parsed.loc, issues, objects.length > 1);
+  });
+
+  return finish(text, issues, note);
+}
+
+function checkObject(obj, path, loc, issues, multi) {
+  var prefix = multi ? "Banner " + (parseInt(path.slice(1), 10) + 1) + ": " : "";
+  function L(key) { return loc[path + "." + key]; }
+  function add(sev, key, message, fix, whole) {
+    var l = L(key), range = null;
+    if (l) range = whole === "key" ? [l.keyStart, l.keyEnd] : [l.valStart, l.valEnd];
+    issues.push({ severity: sev, field: key, message: prefix + message, fix: fix, range: range });
+  }
+
+  var keys = Object.keys(obj);
+  var handled = {};
+  var required = CONFIG.requiredKeys;
+
+  // Unknown or misspelled keys
+  keys.forEach(function (k) {
+    if (required.indexOf(k) >= 0) return;
+    var best = null, bestD = 99;
+    required.forEach(function (r) {
+      if (Object.prototype.hasOwnProperty.call(obj, r)) return;
+      var d = levenshtein(k.toLowerCase().trim(), r.toLowerCase());
+      if (d < bestD) { bestD = d; best = r; }
+    });
+    if (best && k.trim().toLowerCase() === best.toLowerCase()) {
+      handled[best] = true;
+      add("error", k, "Key \u201C" + k + "\u201D has the wrong " + (k !== k.trim() ? "spacing" : "capitalisation") + ". It must be \u201C" + best + "\u201D.", "Rename it to \"" + best + "\". The app matches keys exactly.", "key");
+    } else if (best && bestD <= 3) {
+      handled[best] = true;
+      add("error", k, "Unknown key \u201C" + k + "\u201D. Did you mean \u201C" + best + "\u201D?", "Rename it to \"" + best + "\".", "key");
+    } else {
+      add("error", k, "Unknown key \u201C" + k + "\u201D. It isn't part of the banner format.", "Remove it, or check the spelling.", "key");
+    }
+  });
+
+  // Missing keys
+  required.forEach(function (r) {
+    if (!Object.prototype.hasOwnProperty.call(obj, r) && !handled[r]) {
+      issues.push({ severity: "error", field: r, message: prefix + "Missing key \u201C" + r + "\u201D.", fix: "Add \"" + r + "\": <value>." });
+    }
+  });
+
+  var has = function (k) { return Object.prototype.hasOwnProperty.call(obj, k); };
+
+  // Numbers
+  ["slotID", "seconds"].forEach(function (k) {
+    if (!has(k)) return;
+    var v = obj[k];
+    if (typeof v === "string" && /^\s*\d+\s*$/.test(v)) {
+      add("error", k, k + " is written as text (\"" + v + "\") instead of a number.", "Remove the quotes: " + k + ": " + v.trim());
+      return;
+    }
+    if (typeof v !== "number") { add("error", k, k + " must be a whole number, but it is " + typeName(v) + ".", "Example: \"" + k + "\": " + (k === "seconds" ? 5 : 14)); return; }
+    if (!Number.isInteger(v) || v < 1) {
+      add("error", k, k + " must be a whole number of 1 or more (found " + v + ").");
+      return;
+    }
+    if (k === "seconds" && v !== CONFIG.expectedSeconds) {
+      add("warning", k, "seconds is " + v + ". Every working campaign uses " + CONFIG.expectedSeconds + ".", "Confirm this is intentional.");
+    }
+  });
+
+  // Booleans
+  ["isTermsandConditionAvailable", "isTermsandConditionClickable", "isTermsandConditionPage"].forEach(function (k) {
+    if (!has(k)) return;
+    var v = obj[k];
+    if (typeof v === "boolean") return;
+    if (typeof v === "string" && /^(true|false)$/i.test(v.trim())) {
+      add("error", k, k + " is written as text (\"" + v + "\") instead of true/false.", "Remove the quotes: " + k + ": " + v.trim().toLowerCase());
+    } else {
+      add("error", k, k + " must be true or false, but it is " + typeName(v) + ".");
+    }
+  });
+  if (obj.isTermsandConditionPage === false) {
+    add("warning", "isTermsandConditionPage", "isTermsandConditionPage is false. Every working campaign has it set to true.", "Confirm this is intentional.");
+  }
+  if (obj.isTermsandConditionAvailable === true && obj.isTermsandConditionClickable === false) {
+    add("warning", "isTermsandConditionClickable", "T&C is shown (Available = true) but can't be tapped (Clickable = false). No working campaign uses this combination.", "Set isTermsandConditionClickable to true, or confirm.");
+  }
+
+  // Text fields
+  function textField(k) {
+    if (!has(k)) return null;
+    var v = obj[k];
+    if (typeof v !== "string") { add("error", k, k + " must be text in double quotes, but it is " + typeName(v) + "."); return null; }
+    if (v.trim() === "") { add("error", k, k + " is empty."); return null; }
+    return v;
+  }
+  function urlBasics(k, v) {
+    if (v !== v.trim()) {
+      add("warning", k, k + " has a " + (/^\s/.test(v) ? "leading" : "trailing") + " space inside the quotes.", "Delete the space. Some devices may fail to open the link.");
+    }
+    var t = v.trim();
+    if (/\s/.test(t)) { add("error", k, k + " contains a space in the middle of the URL.", "Spaces in URLs must be written as %20."); return null; }
+    var stray = /['"\u201C\u201D\u2018\u2019`<>]/.exec(t);
+    if (stray) { add("error", k, k + " contains a stray " + stray[0] + " character.", "Remove it. Quotes inside a URL usually mean a quote was mistyped at the end of the value."); return null; }
+    return t;
+  }
+
+  var dl = textField("deepLink");
+  if (dl != null) {
+    var t = urlBasics("deepLink", dl);
+    if (t != null) {
+      var okPrefix = CONFIG.deepLinkPrefixes.some(function (p) { return t.indexOf(p) === 0 && t.length > p.length; });
+      if (!okPrefix) {
+        var hint = "";
+        if (/^(abcd)+upi:\/\//.test(t) && t.indexOf("abcdupi://") !== 0) hint = " \u201C" + t.split("://")[0] + "://\u201D looks like a typo for \u201Cabcdupi://\u201D.";
+        else if (/^(abcd){2,}:\/\//.test(t)) hint = " The scheme is repeated.";
+        add("error", "deepLink", "deepLink doesn't match any allowed pattern." + hint, "It must start with one of: " + CONFIG.deepLinkPrefixes.join("  |  "));
+      }
+    }
+  }
+
+  ["imageUrl", "iconUrl"].forEach(function (k) {
+    var v = textField(k);
+    if (v == null) return;
+    var t = urlBasics(k, v);
+    if (t == null) return;
+    if (t.indexOf(CONFIG.imageHostPrefix) !== 0) {
+      add("error", k, k + " isn't hosted in the ABCD Firebase image bucket.", "It must start with " + CONFIG.imageHostPrefix);
+      return;
+    }
+    var q = t.indexOf("?");
+    var pathPart = q >= 0 ? t.slice(CONFIG.imageHostPrefix.length, q) : t.slice(CONFIG.imageHostPrefix.length);
+    var query = q >= 0 ? t.slice(q + 1) : "";
+    var decoded = pathPart;
+    try { decoded = decodeURIComponent(pathPart); } catch (e) {}
+    var fileName = decoded.split("/").pop();
+    var dot = fileName.lastIndexOf(".");
+    var ext = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : "";
+    if (!ext || CONFIG.imageExtensions.indexOf(ext) < 0) {
+      add("error", k, k + " doesn't point to an image file" + (ext ? " (." + ext + ")" : " (no file extension)") + ".", "Allowed formats: .webp, .png, .jpg / .jpeg.");
+    } else if (k === "imageUrl" && ext !== "webp") {
+      add("warning", k, "imageUrl is ." + ext + ", not .webp.", "Use a .webp banner for smaller file size.");
+    }
+    if (!/(^|&)alt=media(&|$)/.test(query)) {
+      add("error", k, k + " is missing alt=media, so it returns file details instead of the image.", "Copy the full download URL from Firebase, including ?alt=media&token=...");
+    } else if (!/(^|&)token=[^&]+/.test(query)) {
+      add("warning", k, k + " has no access token.", "Copy the full download URL from Firebase, including &token=...");
+    }
+  });
+
+  var tnc = textField("termsandConditionPageContent");
+  if (tnc != null) {
+    var tt = urlBasics("termsandConditionPageContent", tnc);
+    if (tt != null) {
+      var slug = tt.indexOf(CONFIG.tncPrefix) === 0 ? tt.slice(CONFIG.tncPrefix.length) : null;
+      if (slug === null) {
+        add("error", "termsandConditionPageContent", "The T&C link isn't on the ABCD terms-conditions page.", "It must start with " + CONFIG.tncPrefix);
+      } else if (!/^[A-Za-z0-9._~%-]+\/?$/.test(slug)) {
+        add("error", "termsandConditionPageContent", slug === "" ? "The T&C link has no page name after /terms-conditions/." : "The T&C page name \u201C" + slug + "\u201D contains characters that aren't allowed.", "Use the page name only, e.g. " + CONFIG.tncPrefix + "offer-name");
+      }
+    }
+  }
+
+  var sheet = textField("termsandConditionBottomSheetContent");
+  if (sheet != null) {
+    var probs = checkHtmlBalance(sheet);
+    if (probs.length) {
+      add("warning", "termsandConditionBottomSheetContent", "The T&C bottom-sheet HTML looks broken: " + probs.slice(0, 3).join("; ") + (probs.length > 3 ? " (+" + (probs.length - 3) + " more)" : "") + ".", "Check that every tag is closed.");
+    }
+  }
+}
+
+function finish(text, issues, note, repaired) {
+  var errors = issues.filter(function (x) { return x.severity === "error"; }).length;
+  var warnings = issues.length - errors;
+  issues.forEach(function (x) {
+    if (x.range && x.line == null) { var lc = lineCol(text, x.range[0]); x.line = lc.line; x.col = lc.col; }
+  });
+  return {
+    status: errors ? "error" : warnings ? "warning" : "pass",
+    errors: errors, warnings: warnings, issues: issues, text: text, note: note,
+    syntaxBlocked: issues.some(function (x) { return x.syntax; }),
+    repaired: repaired && repaired.issues.length ? repaired : null,
+    repairFailed: !!(issues.some(function (x) { return x.syntax; }) && !repaired)
+  };
+}
+
+
+/* ================= page app ================= */
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+  var SEV_LABEL = { error:"Error", warning:"Warning" };
+  function part(label, node, cls){
+    var p = el("div", "part" + (cls ? " " + cls : ""));
+    p.appendChild(el("span", "k", label));
+    var v = el("div", "v"); v.appendChild(node); p.appendChild(v);
+    return p;
+  }
+
+  /* ---- rules list ---- */
+  var rules = [
+    "Valid JSON: straight double quotes, commas between entries, no trailing commas, no line breaks inside values, all brackets closed.",
+    "Wrapped as [ { ... } ] with exactly one banner object.",
+    "All 10 keys present and spelled exactly: " + CONFIG.requiredKeys.join(", ") + ". Unknown, misspelled or duplicated keys are errors.",
+    "No empty values. slotID is a whole number of 1 or more. seconds is a whole number (anything other than 5 is a warning).",
+    "isTermsandConditionAvailable, isTermsandConditionClickable and isTermsandConditionPage are true/false without quotes.",
+    "deepLink starts with one of: " + CONFIG.deepLinkPrefixes.join(", ") + ".",
+    "imageUrl and iconUrl are ABCD Firebase URLs with ?alt=media, pointing to .webp, .png or .jpg/.jpeg. A non-.webp imageUrl is a warning.",
+    "termsandConditionPageContent starts with " + CONFIG.tncPrefix + " followed by a page name.",
+    "Warnings (campaign still works, but check it): spaces at the start or end of a URL, broken HTML in the T&C bottom sheet, isTermsandConditionPage set to false, T&C shown but not clickable."
+  ];
+  rules.forEach(function(r){ $("rules-list").appendChild(el("li", null, r)); });
+
+  /* ---- tabs ---- */
+  var tabs = [$("tab-one"), $("tab-bulk")];
+  function selectTab(t){
+    tabs.forEach(function(x){
+      var on = x === t;
+      x.setAttribute("aria-selected", on ? "true" : "false");
+      x.tabIndex = on ? 0 : -1;
+      $(x.getAttribute("aria-controls")).hidden = !on;
+    });
+  }
+  tabs.forEach(function(t, i){
+    t.addEventListener("click", function(){ selectTab(t); });
+    t.addEventListener("keydown", function(e){
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        var n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+        selectTab(n); n.focus();
+      }
+    });
+  });
+
+  /* ---- shared renderers ---- */
+  function summaryText(r, withExtra){
+    if (r.status === "pass" && !(withExtra && r.repaired)) return "No issues found";
+    var parts = [];
+    if (r.errors) parts.push(r.errors + " error" + (r.errors > 1 ? "s" : ""));
+    if (r.warnings) parts.push(r.warnings + " warning" + (r.warnings > 1 ? "s" : ""));
+    if (withExtra && r.repaired) parts.push(r.repaired.issues.length + " more after the syntax is fixed");
+    return parts.join(", ");
+  }
+  function verdictWord(r){
+    return r.status === "error" ? "Will break" : r.status === "warning" ? "Works, with warnings" : "Ready to use";
+  }
+
+  // Renders issues + highlighted payload into container. uid keeps mark ids unique per container.
+  function renderResult(container, r, uid){
+    container.textContent = "";
+    var v = el("div", "verdict " + r.status);
+    v.appendChild(el("span", "word", verdictWord(r)));
+    v.appendChild(el("span", "sub", summaryText(r, true)));
+    container.appendChild(v);
+    if (r.repairFailed) container.appendChild(el("div", "note", "The syntax is too badly broken to check the keys, values and URLs. Fix the error below and validate again."));
+    if (r.note) container.appendChild(el("div", "note", r.note));
+
+    // order: errors first, then by position
+    var list = r.issues.slice().sort(function(a,b){
+      if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
+      var pa = a.range ? a.range[0] : (a.pos != null ? a.pos : 1e9);
+      var pb = b.range ? b.range[0] : (b.pos != null ? b.pos : 1e9);
+      return pa - pb;
+    });
+
+    var markFor = [];
+    if (list.length){
+      var h = el("div", "sect-head");
+      h.appendChild(el("h3", null, r.repaired ? "Syntax" : (list.length > 1 ? "What needs fixing" : "What needs fixing")));
+      if (r.repaired) h.appendChild(el("span", "hint", "Fix this first, then re-check"));
+      container.appendChild(h);
+      var ul = el("ul", "issues");
+      list.forEach(function(x, idx){
+        var li = el("li", "issue " + x.severity);
+        var top = el("div", "issue-top");
+        top.appendChild(el("span", "sev", SEV_LABEL[x.severity]));
+        top.appendChild(el("span", "field", x.field));
+        if (x.line) top.appendChild(el("span", "where", "Line " + x.line + ", character " + x.col));
+        li.appendChild(top);
+
+        var body = el("div", "issue-body");
+        body.appendChild(part("Problem", el("span", null, x.message)));
+        if (x.fix) body.appendChild(part("Fix", el("span", null, x.fix), "fix"));
+        var hasSpot = x.range || x.pos != null;
+        if (hasSpot) {
+          var mid = uid + "-m" + idx;
+          markFor.push({ issue: x, id: mid });
+          var j = el("button", "jump", "Highlight in the payload below");
+          j.type = "button";
+          j.addEventListener("click", function(){
+            var m = document.getElementById(mid);
+            if (!m) return;
+            m.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+            m.classList.remove("flash"); void m.offsetWidth; m.classList.add("flash");
+          });
+          body.appendChild(part("Where", j));
+        }
+        li.appendChild(body);
+        ul.appendChild(li);
+      });
+      container.appendChild(ul);
+    }
+
+    if (r.text && r.text.trim()){
+      var head = el("div", "code-head");
+      head.appendChild(el("h3", null, "Your payload"));
+      head.appendChild(el("span", "hint", markFor.length ? "Highlighted spots match the cards above" : r.text.length + " characters"));
+      container.appendChild(head);
+      container.appendChild(buildCode(r.text, markFor));
+    }
+
+    if (r.repaired) renderRepaired(container, r.repaired, uid + "-rp");
+  }
+
+  function renderRepaired(container, rp, uid){
+    var h = el("div", "sect-head");
+    h.appendChild(el("h3", null, "Also found, once the syntax is fixed"));
+    h.appendChild(el("span", "hint", rp.errors + (rp.errors === 1 ? " error" : " errors") + (rp.warnings ? ", " + rp.warnings + (rp.warnings === 1 ? " warning" : " warnings") : "")));
+    container.appendChild(h);
+    container.appendChild(el("div", "note", "To find these, the checker made a temporary copy and " + rp.steps.join(", then ") + ". Your payload was not changed. Positions below refer to that repaired copy."));
+
+    var markFor = [];
+    var ul = el("ul", "issues");
+    rp.issues.slice().sort(function(a,b){
+      if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
+      return (a.range ? a.range[0] : 1e9) - (b.range ? b.range[0] : 1e9);
+    }).forEach(function(x, idx){
+      var li = el("li", "issue " + x.severity);
+      var top = el("div", "issue-top");
+      top.appendChild(el("span", "sev", SEV_LABEL[x.severity]));
+      top.appendChild(el("span", "field", x.field));
+      if (x.line) top.appendChild(el("span", "where", "Line " + x.line + ", character " + x.col));
+      li.appendChild(top);
+      var body = el("div", "issue-body");
+      body.appendChild(part("Problem", el("span", null, x.message)));
+      if (x.fix) body.appendChild(part("Fix", el("span", null, x.fix), "fix"));
+      if (x.range) {
+        var mid = uid + "-m" + idx;
+        markFor.push({ issue: x, id: mid });
+        var j = el("button", "jump", "Highlight in the repaired copy");
+        j.type = "button";
+        j.addEventListener("click", function(){
+          var m = document.getElementById(mid);
+          if (!m) return;
+          m.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+          m.classList.remove("flash"); void m.offsetWidth; m.classList.add("flash");
+        });
+        body.appendChild(part("Where", j));
+      }
+      li.appendChild(body);
+      ul.appendChild(li);
+    });
+    container.appendChild(ul);
+    var head = el("div", "code-head");
+    head.appendChild(el("h3", null, "Repaired copy (for reference only)"));
+    container.appendChild(head);
+    container.appendChild(buildCode(rp.text, markFor));
+  }
+
+  function buildCode(text, markFor){
+    var pre = el("pre", "code");
+    pre.tabIndex = 0;
+    var spans = [];
+    markFor.forEach(function(m){
+      var x = m.issue;
+      if (x.range) spans.push({ s: x.range[0], e: Math.max(x.range[1], x.range[0] + 1), cls: "m-" + x.severity, id: m.id });
+      else spans.push({ s: x.pos, e: x.pos + (x.len || 1), cls: "caret", id: m.id, caret: true });
+    });
+    spans.sort(function(a,b){ return a.s - b.s || b.e - a.e; });
+    var cur = 0, pendingIds = [];
+    spans.forEach(function(sp){
+      if (sp.s < cur) { pendingIds.push(sp.id); return; } // overlapping: point to previous mark
+      if (sp.s > cur) pre.appendChild(document.createTextNode(text.slice(cur, sp.s)));
+      var m = el("mark", sp.cls);
+      m.id = sp.id;
+      var chunk = text.slice(sp.s, sp.e);
+      if (sp.caret && (chunk === "" || /\s/.test(chunk))) chunk = chunk === "" ? "\u2190 end" : "\u2423" ;
+      m.textContent = chunk;
+      m.title = "Issue here";
+      pre.appendChild(m);
+      pendingIds.forEach(function(pid){ var a = el("span"); a.id = pid; m.appendChild(a); });
+      pendingIds = [];
+      cur = Math.min(Math.max(sp.e, cur), text.length);
+      if (sp.s >= text.length) cur = text.length;
+    });
+    if (cur < text.length) pre.appendChild(document.createTextNode(text.slice(cur)));
+    pendingIds.forEach(function(pid){ var a = el("span"); a.id = pid; pre.appendChild(a); });
+    return pre;
+  }
+
+  /* ---- single payload ---- */
+  var ta = $("payload"), oneOut = $("one-result");
+  function runOne(){
+    if (!ta.value.trim()) { oneOut.textContent = ""; oneOut.appendChild(el("p", "hint", "Paste a banner JSON above, then validate.")); return; }
+    renderResult(oneOut, validatePayload(ta.value), "one");
+  }
+  $("btn-check").addEventListener("click", runOne);
+  $("btn-clear").addEventListener("click", function(){ ta.value = ""; oneOut.textContent = ""; ta.focus(); });
+  ta.addEventListener("paste", function(){ setTimeout(runOne, 0); });
+  ta.addEventListener("keydown", function(e){ if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runOne(); } });
+
+  /* ---- ExcelJS lazy loader ---- */
+  var excelPromise = null;
+  function loadExcel(){
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    if (excelPromise) return excelPromise;
+    excelPromise = new Promise(function(res, rej){
+      var s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+      s.onload = function(){ window.ExcelJS ? res(window.ExcelJS) : rej(new Error("ExcelJS did not load")); };
+      s.onerror = function(){ excelPromise = null; rej(new Error("Could not load the Excel reader. Check your connection and try again, or upload a .csv instead.")); };
+      document.head.appendChild(s);
+    });
+    return excelPromise;
+  }
+
+  /* ---- file reading ---- */
+  function cellText(v){
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (v instanceof Date) return v.toISOString();
+    if (v.richText) return v.richText.map(function(r){ return r.text; }).join("");
+    if (v.text != null) return typeof v.text === "string" ? v.text : cellText(v.text);
+    if (v.result != null) return cellText(v.result);
+    if (v.error) return String(v.error);
+    return String(v);
+  }
+  function parseDelimited(text){
+    text = text.replace(/^\uFEFF/, "");
+    var firstLine = text.split(/\r?\n/, 1)[0] || "";
+    var d = firstLine.indexOf("\t") >= 0 ? "\t" : ",";
+    var rows = [], row = [], f = "", q = false, i = 0, n = text.length;
+    while (i < n){
+      var c = text[i];
+      if (q){
+        if (c === '"'){ if (text[i+1] === '"'){ f += '"'; i += 2; continue; } q = false; i++; continue; }
+        f += c; i++; continue;
+      }
+      if (c === '"' && f === ""){ q = true; i++; continue; }
+      if (c === d){ row.push(f); f = ""; i++; continue; }
+      if (c === "\r" && text[i+1] === "\n"){ i++; }
+      if (c === "\n" || c === "\r"){ row.push(f); rows.push(row); row = []; f = ""; i++; continue; }
+      f += c; i++;
+    }
+    if (f !== "" || row.length){ row.push(f); rows.push(row); }
+    return rows;
+  }
+  function norm(h){ return String(h || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+  function findColumns(rows){
+    var idNames = ["campaignid", "campaign", "id", "targetid"];
+    var jsNames = ["bannerjson", "json", "payload", "bannerpayload", "banner", "recommendedbannersdata"];
+    for (var r = 0; r < Math.min(rows.length, 5); r++){
+      var hdr = rows[r].map(norm), idc = -1, jsc = -1;
+      hdr.forEach(function(h, c){
+        if (idc < 0 && idNames.indexOf(h) >= 0) idc = c;
+        if (jsc < 0 && jsNames.indexOf(h) >= 0) jsc = c;
+      });
+      if (idc >= 0 && jsc >= 0) return { header: r, id: idc, js: jsc };
+    }
+    return null;
+  }
+  function readFile(file){
+    var name = file.name.toLowerCase();
+    if (/\.xls$/.test(name)) return Promise.reject(new Error("Old .xls files can't be read. Open the file in Excel and save it as .xlsx."));
+    if (/\.(csv|tsv|txt)$/.test(name)) return file.text().then(parseDelimited);
+    return Promise.all([loadExcel(), file.arrayBuffer()]).then(function(a){
+      var wb = new a[0].Workbook();
+      return wb.xlsx.load(a[1]).then(function(){
+        var ws = wb.worksheets[0];
+        if (!ws) throw new Error("The workbook has no sheets.");
+        var rows = [];
+        ws.eachRow({ includeEmpty: true }, function(row, rn){
+          var vals = [];
+          for (var c = 1; c <= Math.max(row.cellCount, 2); c++) vals.push(cellText(row.getCell(c).value));
+          rows[rn - 1] = vals;
+        });
+        for (var k = 0; k < rows.length; k++) if (!rows[k]) rows[k] = [];
+        return rows;
+      });
+    });
+  }
+
+  /* ---- bulk ---- */
+  var results = [], filter = "all", search = "";
+  var status = $("bulk-status");
+  function setStatus(msg, isErr){ status.textContent = msg; status.className = "status-line" + (isErr ? " err" : ""); }
+
+  function handleFile(file){
+    if (!file) return;
+    $("bulk-result").hidden = true;
+    setStatus("Reading " + file.name + "\u2026");
+    readFile(file).then(function(rows){
+      var cols = findColumns(rows);
+      if (!cols){ setStatus("Couldn't find the header row. The first sheet needs a \u201CCampaign ID\u201D column and a \u201CBanner JSON\u201D column.", true); return; }
+      results = [];
+      var seen = {};
+      for (var r = cols.header + 1; r < rows.length; r++){
+        var row = rows[r] || [];
+        var id = String(row[cols.id] == null ? "" : row[cols.id]).trim();
+        var js = row[cols.js] == null ? "" : String(row[cols.js]);
+        if (!id && !js.trim()) continue;
+        var res;
+        if (!js.trim()) res = { status: "error", errors: 1, warnings: 0, text: "", note: null, issues: [{ severity: "error", field: "Banner JSON", message: "The Banner JSON cell is empty." }] };
+        else res = validatePayload(js);
+        if (!id) { res.issues.unshift({ severity: "error", field: "Campaign ID", message: "Campaign ID is missing on this row." }); }
+        if (js.length >= 32767) { res.issues.push({ severity: "warning", field: "Banner JSON", message: "This cell hit Excel's 32,767-character limit, so the payload may have been cut off." }); }
+        if (id && seen[id]) { res.issues.push({ severity: "warning", field: "Campaign ID", message: "Campaign ID also appears on row " + seen[id] + "." }); }
+        if (id && !seen[id]) seen[id] = r + 1;
+        var e = res.issues.filter(function(x){ return x.severity === "error"; }).length;
+        res.errors = e; res.warnings = res.issues.length - e;
+        res.status = e ? "error" : res.warnings ? "warning" : "pass";
+        results.push({ row: r + 1, id: id || "(no ID)", res: res });
+      }
+      if (!results.length){ setStatus("The sheet has headers but no campaign rows.", true); return; }
+      setStatus("Checked " + results.length + " campaign" + (results.length > 1 ? "s" : "") + " from " + file.name + ".");
+      filter = "all"; search = ""; $("search").value = "";
+      $("bulk-result").hidden = false;
+      renderBulk();
+    }).catch(function(err){ setStatus(err && err.message ? err.message : "Couldn't read that file.", true); });
+  }
+
+  function counts(){
+    var c = { all: results.length, error: 0, warning: 0, pass: 0 };
+    results.forEach(function(x){ c[x.res.status]++; });
+    return c;
+  }
+  function renderBulk(){
+    var c = counts(), sum = $("summary");
+    sum.textContent = "";
+    [["all","All campaigns",""],["error","With errors","c-error"],["warning","Warnings only","c-warning"],["pass","Passed","c-pass"]].forEach(function(d){
+      var b = el("button", "chip " + d[2]);
+      b.type = "button";
+      b.setAttribute("aria-pressed", filter === d[0] ? "true" : "false");
+      if (d[2]) b.appendChild(el("span", "dot"));
+      b.appendChild(el("span", "t", d[1]));
+      b.appendChild(el("span", "n", String(c[d[0]])));
+      b.addEventListener("click", function(){ filter = d[0]; renderBulk(); });
+      sum.appendChild(b);
+    });
+
+    var body = $("rows");
+    body.textContent = "";
+    var shown = results.filter(function(x){
+      return (filter === "all" || x.res.status === filter) && (!search || x.id.toLowerCase().indexOf(search) >= 0);
+    });
+    // problems first when showing all
+    shown.sort(function(a,b){
+      var o = { error: 0, warning: 1, pass: 2 };
+      return o[a.res.status] - o[b.res.status] || a.row - b.row;
+    });
+    if (!shown.length){
+      var tr0 = el("tr"), td0 = el("td", "empty", "No campaigns match this filter.");
+      td0.colSpan = 5; tr0.appendChild(td0); body.appendChild(tr0);
+      return;
+    }
+    shown.forEach(function(x){
+      var tr = el("tr", "main");
+      tr.appendChild(el("td", null, String(x.row)));
+      tr.appendChild(el("td", "id", x.id));
+      var st = el("td"); st.appendChild(el("span", "badge " + x.res.status, x.res.status === "pass" ? "Passed" : summaryText(x.res, true))); tr.appendChild(st);
+      var first = x.res.issues.filter(function(i){ return i.severity === "error"; })[0] || x.res.issues[0];
+      var firstText = first ? first.field + ": " + first.message : "\u2014";
+      if (x.res.repaired) firstText += "  (+" + x.res.repaired.issues.length + " more once the syntax is fixed)";
+      tr.appendChild(el("td", "first", firstText));
+      var tg = el("td"), btn = el("button", "row-toggle", "\u25B8");
+      btn.type = "button";
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("aria-label", "Show details for " + x.id);
+      tg.appendChild(btn); tr.appendChild(tg);
+      var detail = el("tr", "detail"); detail.hidden = true;
+      var dtd = el("td"); dtd.colSpan = 5; detail.appendChild(dtd);
+      var built = false;
+      function toggle(){
+        var open = detail.hidden;
+        detail.hidden = !open;
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        btn.textContent = open ? "\u25BE" : "\u25B8";
+        if (open && !built){ renderResult(dtd, x.res, "r" + x.row); built = true; }
+      }
+      tr.addEventListener("click", function(e){ if (e.target !== btn) toggle(); });
+      btn.addEventListener("click", toggle);
+      body.appendChild(tr); body.appendChild(detail);
+    });
+  }
+
+  $("search").addEventListener("input", function(e){ search = e.target.value.trim().toLowerCase(); renderBulk(); });
+  $("btn-pick").addEventListener("click", function(){ $("file").click(); });
+  $("file").addEventListener("change", function(e){ handleFile(e.target.files[0]); e.target.value = ""; });
+  var drop = $("drop");
+  ["dragenter","dragover"].forEach(function(t){ drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.add("over"); }); });
+  ["dragleave","drop"].forEach(function(t){ drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.remove("over"); }); });
+  drop.addEventListener("drop", function(e){ var f = e.dataTransfer && e.dataTransfer.files[0]; if (f) handleFile(f); });
+
+  /* ---- export ---- */
+  function reportRows(){
+    var o = { error: 0, warning: 1, pass: 2 };
+    return results.slice().sort(function(a,b){ return o[a.res.status] - o[b.res.status] || a.row - b.row; }).map(function(x){
+      return {
+        row: x.row, id: x.id,
+        status: x.res.status === "error" ? "Errors" : x.res.status === "warning" ? "Warnings only" : "Passed",
+        errors: x.res.errors, warnings: x.res.warnings,
+        details: x.res.issues.concat(x.res.repaired ? x.res.repaired.issues.map(function(i){ var y = {}; for (var k in i) y[k] = i[k]; y.field = i.field + " (after syntax fix)"; return y; }) : [])
+          .map(function(i){ return SEV_LABEL[i.severity] + " \u2013 " + i.field + ": " + i.message + (i.fix ? " Fix: " + i.fix : ""); }).join("\n")
+      };
+    });
+  }
+  var exportMsg = $("export-msg");
+  $("btn-copy").addEventListener("click", function(){
+    var lines = ["Row\tCampaign ID\tStatus\tErrors\tWarnings\tIssues"];
+    reportRows().forEach(function(r){ lines.push([r.row, r.id, r.status, r.errors, r.warnings, r.details.replace(/\n/g, " | ")].join("\t")); });
+    var txt = lines.join("\n");
+    (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(txt) : Promise.reject())
+      .then(function(){ exportMsg.textContent = "Copied. Paste into Excel or Sheets."; })
+      .catch(function(){ exportMsg.textContent = "Couldn't copy automatically. Use the download button instead."; });
+  });
+
+  var downloads = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then(function(d){ if (d){ downloads = d; $("btn-download").hidden = false; } }).catch(function(){});
+  }
+  $("btn-download").addEventListener("click", function(){
+    if (!downloads) return;
+    exportMsg.textContent = "Preparing report\u2026";
+    loadExcel().then(function(ExcelJS){
+      var wb = new ExcelJS.Workbook();
+      var ws = wb.addWorksheet("Validation report");
+      ws.columns = [
+        { header: "Row", key: "row", width: 7 },
+        { header: "Campaign ID", key: "id", width: 16 },
+        { header: "Status", key: "status", width: 15 },
+        { header: "Errors", key: "errors", width: 8 },
+        { header: "Warnings", key: "warnings", width: 10 },
+        { header: "Issues", key: "details", width: 110 }
+      ];
+      ws.getRow(1).font = { bold: true };
+      reportRows().forEach(function(r){
+        var row = ws.addRow(r);
+        row.getCell("details").alignment = { wrapText: true, vertical: "top" };
+        var colors = { "Errors": "FFB3261E", "Warnings only": "FF8A5A00", "Passed": "FF1D6F47" };
+        row.getCell("status").font = { bold: true, color: { argb: colors[r.status] } };
+      });
+      ws.views = [{ state: "frozen", ySplit: 1 }];
+      return wb.xlsx.writeBuffer();
+    }).then(function(buf){
+      return downloads.save({ filename: "banner-payload-report.xlsx", data: new Blob([buf]) });
+    }).then(function(){ exportMsg.textContent = "Report saved."; })
+      .catch(function(err){
+        var code = err && err.code;
+        exportMsg.textContent = code === "declined" ? "Download cancelled." : code === "rate_limited" ? "A download prompt is already open." : "Couldn't save the report. Use Copy report instead.";
+      });
+  });
+})();
+</script>
+</body>
+</html>
