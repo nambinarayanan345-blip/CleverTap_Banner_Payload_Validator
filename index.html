@@ -21,6 +21,7 @@
   --err:#B3161D; --err-bg:#FDECEC; --err-mark:#F9C9C9;
   --warn:#8A4A05; --warn-bg:#FEF3E3; --warn-mark:#FBDDB4;
   --ok:#106B46; --ok-bg:#E5F3EC;
+  --sug:#1B4F8F; --sug-bg:#E8F0FB; --sug-mark:#C7DAF5; --sug-line:#3A78C9;
   --focus:#1F5FBF;
   --code-bg:#FBFAF9;
   --shadow:0 1px 2px rgba(36,31,32,.06), 0 4px 16px rgba(36,31,32,.05);
@@ -80,11 +81,14 @@ textarea:focus{border-color:var(--brand)}
 .issue{border:1px solid var(--rule);border-left:5px solid var(--rule);border-radius:12px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow)}
 .issue.error{border-left-color:var(--brand)}
 .issue.warning{border-left-color:var(--brand-orange)}
+.issue.suggestion{border-left-color:var(--sug-line)}
 .issue-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 16px;border-bottom:1px solid var(--rule-2);background:var(--rule-2)}
 .issue.error .issue-top{background:var(--err-bg)}
 .issue.warning .issue-top{background:var(--warn-bg)}
+.issue.suggestion .issue-top{background:var(--sug-bg)}
 .sev{font-size:11.5px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--brand);color:#fff}
 .issue.warning .sev{background:var(--brand-orange);color:#3D2200}
+.issue.suggestion .sev{background:var(--sug-line);color:#fff}
 .field{font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);padding:2px 8px;border-radius:6px}
 .where{margin-left:auto;font-size:12.5px;color:var(--ink-2)}
 .issue-body{padding:12px 16px 14px;display:grid;gap:10px}
@@ -101,6 +105,7 @@ pre.code{margin:0;width:100%;padding:14px;border:1px solid var(--rule);border-ra
 mark{color:inherit;border-radius:3px;padding:1px 0}
 mark.m-error{background:var(--err-mark);box-shadow:inset 0 -2px 0 var(--brand)}
 mark.m-warning{background:var(--warn-mark);box-shadow:inset 0 -2px 0 var(--brand-orange)}
+mark.m-suggestion{background:var(--sug-mark);box-shadow:inset 0 -2px 0 var(--sug-line)}
 mark.caret{background:var(--brand);color:#fff;padding:1px 3px;font-weight:500}
 mark.flash{animation:flash 1.2s ease-out 1}
 @keyframes flash{0%{outline:3px solid var(--focus)}100%{outline:3px solid transparent}}
@@ -130,7 +135,7 @@ mark.flash{animation:flash 1.2s ease-out 1}
 .chip .n{font-size:17px;font-weight:700;color:var(--ink)}
 .chip .t{font-size:14px;font-weight:600}
 .chip .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-3)}
-.chip.c-error .dot{background:var(--brand)} .chip.c-warning .dot{background:var(--brand-orange)} .chip.c-pass .dot{background:var(--ok)}
+.chip.c-error .dot{background:var(--brand)} .chip.c-warning .dot{background:var(--brand-orange)} .chip.c-pass .dot{background:var(--ok)} .chip.c-suggestion .dot{background:var(--sug-line)}
 .chip[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-tint);color:var(--ink)}
 .chip[aria-pressed="true"] .n{color:var(--brand-deep)}
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 12px}
@@ -143,7 +148,7 @@ table.res tr.main{cursor:pointer}
 table.res tr.main:hover td{background:var(--brand-tint)}
 table.res td.id{font-family:var(--mono);font-size:13px;white-space:nowrap}
 .badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
-.badge.error{background:var(--err-bg);color:var(--err)} .badge.warning{background:var(--warn-bg);color:var(--warn)} .badge.pass{background:var(--ok-bg);color:var(--ok)}
+.badge.error{background:var(--err-bg);color:var(--err)} .badge.warning{background:var(--warn-bg);color:var(--warn)} .badge.pass{background:var(--ok-bg);color:var(--ok)} .badge.suggestion{background:var(--sug-bg);color:var(--sug)}
 .first{color:var(--ink-2);font-size:14px}
 .row-toggle{appearance:none;background:none;border:0;font:inherit;color:var(--ink-3);cursor:pointer;padding:0 4px;font-size:13px}
 tr.detail td{background:var(--paper);padding:16px 18px 20px}
@@ -256,7 +261,11 @@ var CONFIG = {
   ],
   imageHostPrefix: "https://firebasestorage.googleapis.com/v0/b/abcapital-92ca5.appspot.com/o/",
   imageExtensions: ["jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp", "png", "webp"],
+  cdnImageHostPrefix: "https://cdn.adityabirlacapital.com/",
   tncPrefix: "https://www.adityabirlacapital.com/abcd/terms-conditions/",
+  tncSiteRoot: "https://www.adityabirlacapital.com/",
+  idealDeepLinkPrefix: "abcd://adityabirlacapitaldigital.com/",
+  suggestedDeepLinkPrefixes: ["https://customer.credilio.in/"],
   expectedSeconds: 5
 };
 
@@ -642,6 +651,13 @@ function repairText(text) {
   return { ok: false };
 }
 
+function tally(issues) {
+  var t = { errors: 0, warnings: 0, suggestions: 0 };
+  issues.forEach(function (x) { if (x.severity === "error") t.errors++; else if (x.severity === "suggestion") t.suggestions++; else t.warnings++; });
+  return t;
+}
+var SEV_ORDER = { error: 0, warning: 1, suggestion: 2 };
+
 function checkRepaired(text) {
   var r = repairText(text);
   if (!r.ok) return null;
@@ -658,8 +674,8 @@ function checkRepaired(text) {
     issues.push({ severity: "error", field: d.key, message: "The key \u201C" + d.key + "\u201D appears more than once.", fix: "Delete the duplicate.", range: [d.keyStart, d.keyEnd] });
   });
   issues.forEach(function (x) { if (x.range) { var lc = lineCol(r.text, x.range[0]); x.line = lc.line; x.col = lc.col; } });
-  var errs = issues.filter(function (x) { return x.severity === "error"; }).length;
-  return { text: r.text, steps: r.steps, issues: issues, errors: errs, warnings: issues.length - errs };
+  var tl = tally(issues);
+  return { text: r.text, steps: r.steps, issues: issues, errors: tl.errors, warnings: tl.warnings, suggestions: tl.suggestions };
 }
 
 /* ---------- payload rules ---------- */
@@ -847,6 +863,8 @@ function checkObject(obj, path, loc, issues, multi) {
         if (/^(abcd)+upi:\/\//.test(t) && t.indexOf("abcdupi://") !== 0) hint = " \u201C" + t.split("://")[0] + "://\u201D looks like a typo for \u201Cabcdupi://\u201D.";
         else if (/^(abcd){2,}:\/\//.test(t)) hint = " The scheme is repeated.";
         add("error", "deepLink", "deepLink doesn't match any allowed pattern." + hint, "It must start with one of: " + CONFIG.deepLinkPrefixes.join("  |  "));
+      } else if (CONFIG.suggestedDeepLinkPrefixes.some(function (p) { return t.indexOf(p) === 0; })) {
+        add("suggestion", "deepLink", "This external (Credilio) deepLink will work, but it isn't the recommended in-app format.", "Prefer an in-app link starting with " + CONFIG.idealDeepLinkPrefix);
       }
     }
   }
@@ -856,13 +874,17 @@ function checkObject(obj, path, loc, issues, multi) {
     if (v == null) return;
     var t = urlBasics(k, v);
     if (t == null) return;
-    if (t.indexOf(CONFIG.imageHostPrefix) !== 0) {
-      add("error", k, k + " isn't hosted in the ABCD Firebase image bucket.", "It must start with " + CONFIG.imageHostPrefix);
+    var isFirebase = t.indexOf(CONFIG.imageHostPrefix) === 0;
+    var isCdn = k === "imageUrl" && t.indexOf(CONFIG.cdnImageHostPrefix) === 0;
+    if (!isFirebase && !isCdn) {
+      if (k === "imageUrl") add("error", k, "imageUrl isn't hosted on the ABCD CDN or in the ABCD Firebase image bucket.", "It must start with " + CONFIG.cdnImageHostPrefix + " or " + CONFIG.imageHostPrefix);
+      else add("error", k, k + " isn't hosted in the ABCD Firebase image bucket.", "It must start with " + CONFIG.imageHostPrefix);
       return;
     }
-    var q = t.indexOf("?");
-    var pathPart = q >= 0 ? t.slice(CONFIG.imageHostPrefix.length, q) : t.slice(CONFIG.imageHostPrefix.length);
-    var query = q >= 0 ? t.slice(q + 1) : "";
+    var base = isCdn ? CONFIG.cdnImageHostPrefix : CONFIG.imageHostPrefix;
+    var cut = t.search(/[?#]/);
+    var pathPart = cut >= 0 ? t.slice(base.length, cut) : t.slice(base.length);
+    var query = t.indexOf("?") >= 0 ? t.slice(t.indexOf("?") + 1) : "";
     var decoded = pathPart;
     try { decoded = decodeURIComponent(pathPart); } catch (e) {}
     var fileName = decoded.split("/").pop();
@@ -871,12 +893,14 @@ function checkObject(obj, path, loc, issues, multi) {
     if (!ext || CONFIG.imageExtensions.indexOf(ext) < 0) {
       add("error", k, k + " doesn't point to an image file" + (ext ? " (." + ext + ")" : " (no file extension)") + ".", "Allowed formats: .webp, .png, .jpg / .jpeg.");
     } else if (k === "imageUrl" && ext !== "webp") {
-      add("warning", k, "imageUrl is ." + ext + ", not .webp.", "Use a .webp banner for smaller file size.");
+      add("suggestion", k, "imageUrl is ." + ext + ". It will work, but .webp is the recommended format.", "Use a .webp banner for smaller file size.");
     }
-    if (!/(^|&)alt=media(&|$)/.test(query)) {
-      add("error", k, k + " is missing alt=media, so it returns file details instead of the image.", "Copy the full download URL from Firebase, including ?alt=media&token=...");
-    } else if (!/(^|&)token=[^&]+/.test(query)) {
-      add("warning", k, k + " has no access token.", "Copy the full download URL from Firebase, including &token=...");
+    if (isFirebase) {
+      if (!/(^|&)alt=media(&|$)/.test(query)) {
+        add("error", k, k + " is missing alt=media, so it returns file details instead of the image.", "Copy the full download URL from Firebase, including ?alt=media&token=...");
+      } else if (!/(^|&)token=[^&]+/.test(query)) {
+        add("warning", k, k + " has no access token.", "Copy the full download URL from Firebase, including &token=...");
+      }
     }
   });
 
@@ -885,7 +909,9 @@ function checkObject(obj, path, loc, issues, multi) {
     var tt = urlBasics("termsandConditionPageContent", tnc);
     if (tt != null) {
       var slug = tt.indexOf(CONFIG.tncPrefix) === 0 ? tt.slice(CONFIG.tncPrefix.length) : null;
-      if (slug === null) {
+      if (slug === null && tt.indexOf(CONFIG.tncSiteRoot) === 0 && tt.length > CONFIG.tncSiteRoot.length) {
+        add("suggestion", "termsandConditionPageContent", "The T&C link is on adityabirlacapital.com but not on the terms-conditions page. It will work, but it isn't the recommended format.", "Prefer " + CONFIG.tncPrefix + "offer-name");
+      } else if (slug === null) {
         add("error", "termsandConditionPageContent", "The T&C link isn't on the ABCD terms-conditions page.", "It must start with " + CONFIG.tncPrefix);
       } else if (!/^[A-Za-z0-9._~%-]+\/?$/.test(slug)) {
         add("error", "termsandConditionPageContent", slug === "" ? "The T&C link has no page name after /terms-conditions/." : "The T&C page name \u201C" + slug + "\u201D contains characters that aren't allowed.", "Use the page name only, e.g. " + CONFIG.tncPrefix + "offer-name");
@@ -903,14 +929,13 @@ function checkObject(obj, path, loc, issues, multi) {
 }
 
 function finish(text, issues, note, repaired) {
-  var errors = issues.filter(function (x) { return x.severity === "error"; }).length;
-  var warnings = issues.length - errors;
+  var tl = tally(issues), errors = tl.errors, warnings = tl.warnings;
   issues.forEach(function (x) {
     if (x.range && x.line == null) { var lc = lineCol(text, x.range[0]); x.line = lc.line; x.col = lc.col; }
   });
   return {
     status: errors ? "error" : warnings ? "warning" : "pass",
-    errors: errors, warnings: warnings, issues: issues, text: text, note: note,
+    errors: errors, warnings: warnings, suggestions: tl.suggestions, issues: issues, text: text, note: note,
     syntaxBlocked: issues.some(function (x) { return x.syntax; }),
     repaired: repaired && repaired.issues.length ? repaired : null,
     repairFailed: !!(issues.some(function (x) { return x.syntax; }) && !repaired)
@@ -922,7 +947,7 @@ function finish(text, issues, note, repaired) {
 (function(){
   var $ = function(id){ return document.getElementById(id); };
   function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
-  var SEV_LABEL = { error:"Error", warning:"Warning" };
+  var SEV_LABEL = { error:"Error", warning:"Warning", suggestion:"Suggestion" };
   function part(label, node, cls){
     var p = el("div", "part" + (cls ? " " + cls : ""));
     p.appendChild(el("span", "k", label));
@@ -937,9 +962,10 @@ function finish(text, issues, note, repaired) {
     "All 10 keys present and spelled exactly: " + CONFIG.requiredKeys.join(", ") + ". Unknown, misspelled or duplicated keys are errors.",
     "No empty values. slotID is a whole number of 1 or more. seconds is a whole number (anything other than 5 is a warning).",
     "isTermsandConditionAvailable, isTermsandConditionClickable and isTermsandConditionPage are true/false without quotes.",
-    "deepLink starts with one of: " + CONFIG.deepLinkPrefixes.join(", ") + ".",
-    "imageUrl and iconUrl are ABCD Firebase URLs with ?alt=media, pointing to .webp, .png or .jpg/.jpeg. A non-.webp imageUrl is a warning.",
-    "termsandConditionPageContent starts with " + CONFIG.tncPrefix + " followed by a page name.",
+    "deepLink starts with one of: " + CONFIG.deepLinkPrefixes.join(", ") + ". External Credilio links work but get a Suggestion (the in-app format is preferred).",
+    "imageUrl is an ABCD CDN link (" + CONFIG.cdnImageHostPrefix + "...) or an ABCD Firebase URL with ?alt=media. iconUrl is a Firebase URL with ?alt=media. Files must be .webp, .png or .jpg/.jpeg. A non-.webp imageUrl gets a Suggestion.",
+    "termsandConditionPageContent starts with " + CONFIG.tncPrefix + " followed by a page name. Other adityabirlacapital.com links work but get a Suggestion.",
+    "Suggestions (campaign works, but the format is not the recommended one): non-.webp imageUrl, Credilio deepLink, T&C link outside the terms-conditions page. They do not stop a campaign from showing Ready to use.",
     "Warnings (campaign still works, but check it): spaces at the start or end of a URL, broken HTML in the T&C bottom sheet, isTermsandConditionPage set to false, T&C shown but not clickable."
   ];
   rules.forEach(function(r){ $("rules-list").appendChild(el("li", null, r)); });
@@ -966,10 +992,11 @@ function finish(text, issues, note, repaired) {
 
   /* ---- shared renderers ---- */
   function summaryText(r, withExtra){
-    if (r.status === "pass" && !(withExtra && r.repaired)) return "No issues found";
+    if (r.status === "pass" && !r.suggestions && !(withExtra && r.repaired)) return "No issues found";
     var parts = [];
     if (r.errors) parts.push(r.errors + " error" + (r.errors > 1 ? "s" : ""));
     if (r.warnings) parts.push(r.warnings + " warning" + (r.warnings > 1 ? "s" : ""));
+    if (r.suggestions) parts.push(r.suggestions + " suggestion" + (r.suggestions > 1 ? "s" : ""));
     if (withExtra && r.repaired) parts.push(r.repaired.issues.length + " more after the syntax is fixed");
     return parts.join(", ");
   }
@@ -989,7 +1016,7 @@ function finish(text, issues, note, repaired) {
 
     // order: errors first, then by position
     var list = r.issues.slice().sort(function(a,b){
-      if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
+      if (a.severity !== b.severity) return SEV_ORDER[a.severity] - SEV_ORDER[b.severity];
       var pa = a.range ? a.range[0] : (a.pos != null ? a.pos : 1e9);
       var pb = b.range ? b.range[0] : (b.pos != null ? b.pos : 1e9);
       return pa - pb;
@@ -998,7 +1025,7 @@ function finish(text, issues, note, repaired) {
     var markFor = [];
     if (list.length){
       var h = el("div", "sect-head");
-      h.appendChild(el("h3", null, r.repaired ? "Syntax" : (list.length > 1 ? "What needs fixing" : "What needs fixing")));
+      h.appendChild(el("h3", null, r.repaired ? "Syntax" : (r.errors || r.warnings ? "What needs fixing" : "Suggestions")));
       if (r.repaired) h.appendChild(el("span", "hint", "Fix this first, then re-check"));
       container.appendChild(h);
       var ul = el("ul", "issues");
@@ -1047,14 +1074,14 @@ function finish(text, issues, note, repaired) {
   function renderRepaired(container, rp, uid){
     var h = el("div", "sect-head");
     h.appendChild(el("h3", null, "Also found, once the syntax is fixed"));
-    h.appendChild(el("span", "hint", rp.errors + (rp.errors === 1 ? " error" : " errors") + (rp.warnings ? ", " + rp.warnings + (rp.warnings === 1 ? " warning" : " warnings") : "")));
+    h.appendChild(el("span", "hint", rp.errors + (rp.errors === 1 ? " error" : " errors") + (rp.warnings ? ", " + rp.warnings + (rp.warnings === 1 ? " warning" : " warnings") : "") + (rp.suggestions ? ", " + rp.suggestions + (rp.suggestions === 1 ? " suggestion" : " suggestions") : "")));
     container.appendChild(h);
     container.appendChild(el("div", "note", "To find these, the checker made a temporary copy and " + rp.steps.join(", then ") + ". Your payload was not changed. Positions below refer to that repaired copy."));
 
     var markFor = [];
     var ul = el("ul", "issues");
     rp.issues.slice().sort(function(a,b){
-      if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
+      if (a.severity !== b.severity) return SEV_ORDER[a.severity] - SEV_ORDER[b.severity];
       return (a.range ? a.range[0] : 1e9) - (b.range ? b.range[0] : 1e9);
     }).forEach(function(x, idx){
       var li = el("li", "issue " + x.severity);
@@ -1233,15 +1260,15 @@ function finish(text, issues, note, repaired) {
         var js = row[cols.js] == null ? "" : String(row[cols.js]);
         if (!id && !js.trim()) continue;
         var res;
-        if (!js.trim()) res = { status: "error", errors: 1, warnings: 0, text: "", note: null, issues: [{ severity: "error", field: "Banner JSON", message: "The Banner JSON cell is empty." }] };
+        if (!js.trim()) res = { status: "error", errors: 1, warnings: 0, suggestions: 0, text: "", note: null, issues: [{ severity: "error", field: "Banner JSON", message: "The Banner JSON cell is empty." }] };
         else res = validatePayload(js);
         if (!id) { res.issues.unshift({ severity: "error", field: "Campaign ID", message: "Campaign ID is missing on this row." }); }
         if (js.length >= 32767) { res.issues.push({ severity: "warning", field: "Banner JSON", message: "This cell hit Excel's 32,767-character limit, so the payload may have been cut off." }); }
         if (id && seen[id]) { res.issues.push({ severity: "warning", field: "Campaign ID", message: "Campaign ID also appears on row " + seen[id] + "." }); }
         if (id && !seen[id]) seen[id] = r + 1;
-        var e = res.issues.filter(function(x){ return x.severity === "error"; }).length;
-        res.errors = e; res.warnings = res.issues.length - e;
-        res.status = e ? "error" : res.warnings ? "warning" : "pass";
+        var tl = tally(res.issues);
+        res.errors = tl.errors; res.warnings = tl.warnings; res.suggestions = tl.suggestions;
+        res.status = tl.errors ? "error" : tl.warnings ? "warning" : "pass";
         results.push({ row: r + 1, id: id || "(no ID)", res: res });
       }
       if (!results.length){ setStatus("The sheet has headers but no campaign rows.", true); return; }
@@ -1253,14 +1280,14 @@ function finish(text, issues, note, repaired) {
   }
 
   function counts(){
-    var c = { all: results.length, error: 0, warning: 0, pass: 0 };
-    results.forEach(function(x){ c[x.res.status]++; });
+    var c = { all: results.length, error: 0, warning: 0, pass: 0, suggestion: 0 };
+    results.forEach(function(x){ c[x.res.status]++; if (x.res.suggestions) c.suggestion++; });
     return c;
   }
   function renderBulk(){
     var c = counts(), sum = $("summary");
     sum.textContent = "";
-    [["all","All campaigns",""],["error","With errors","c-error"],["warning","Warnings only","c-warning"],["pass","Passed","c-pass"]].forEach(function(d){
+    [["all","All campaigns",""],["error","With errors","c-error"],["warning","Warnings only","c-warning"],["pass","Passed","c-pass"],["suggestion","With suggestions","c-suggestion"]].forEach(function(d){
       var b = el("button", "chip " + d[2]);
       b.type = "button";
       b.setAttribute("aria-pressed", filter === d[0] ? "true" : "false");
@@ -1274,7 +1301,7 @@ function finish(text, issues, note, repaired) {
     var body = $("rows");
     body.textContent = "";
     var shown = results.filter(function(x){
-      return (filter === "all" || x.res.status === filter) && (!search || x.id.toLowerCase().indexOf(search) >= 0);
+      return (filter === "all" || (filter === "suggestion" ? x.res.suggestions > 0 : x.res.status === filter)) && (!search || x.id.toLowerCase().indexOf(search) >= 0);
     });
     // problems first when showing all
     shown.sort(function(a,b){
@@ -1290,8 +1317,8 @@ function finish(text, issues, note, repaired) {
       var tr = el("tr", "main");
       tr.appendChild(el("td", null, String(x.row)));
       tr.appendChild(el("td", "id", x.id));
-      var st = el("td"); st.appendChild(el("span", "badge " + x.res.status, x.res.status === "pass" ? "Passed" : summaryText(x.res, true))); tr.appendChild(st);
-      var first = x.res.issues.filter(function(i){ return i.severity === "error"; })[0] || x.res.issues[0];
+      var st = el("td"); st.appendChild(el("span", "badge " + (x.res.status === "pass" && x.res.suggestions ? "suggestion" : x.res.status), x.res.status === "pass" && !x.res.suggestions ? "Passed" : summaryText(x.res, true))); tr.appendChild(st);
+      var first = x.res.issues.slice().sort(function(a,b){ return SEV_ORDER[a.severity] - SEV_ORDER[b.severity]; })[0];
       var firstText = first ? first.field + ": " + first.message : "\u2014";
       if (x.res.repaired) firstText += "  (+" + x.res.repaired.issues.length + " more once the syntax is fixed)";
       tr.appendChild(el("td", "first", firstText));
@@ -1330,8 +1357,8 @@ function finish(text, issues, note, repaired) {
     return results.slice().sort(function(a,b){ return o[a.res.status] - o[b.res.status] || a.row - b.row; }).map(function(x){
       return {
         row: x.row, id: x.id,
-        status: x.res.status === "error" ? "Errors" : x.res.status === "warning" ? "Warnings only" : "Passed",
-        errors: x.res.errors, warnings: x.res.warnings,
+        status: x.res.status === "error" ? "Errors" : x.res.status === "warning" ? "Warnings only" : x.res.suggestions ? "Passed, with suggestions" : "Passed",
+        errors: x.res.errors, warnings: x.res.warnings, suggestions: x.res.suggestions || 0,
         details: x.res.issues.concat(x.res.repaired ? x.res.repaired.issues.map(function(i){ var y = {}; for (var k in i) y[k] = i[k]; y.field = i.field + " (after syntax fix)"; return y; }) : [])
           .map(function(i){ return SEV_LABEL[i.severity] + " \u2013 " + i.field + ": " + i.message + (i.fix ? " Fix: " + i.fix : ""); }).join("\n")
       };
@@ -1339,8 +1366,8 @@ function finish(text, issues, note, repaired) {
   }
   var exportMsg = $("export-msg");
   $("btn-copy").addEventListener("click", function(){
-    var lines = ["Row\tCampaign ID\tStatus\tErrors\tWarnings\tIssues"];
-    reportRows().forEach(function(r){ lines.push([r.row, r.id, r.status, r.errors, r.warnings, r.details.replace(/\n/g, " | ")].join("\t")); });
+    var lines = ["Row\tCampaign ID\tStatus\tErrors\tWarnings\tSuggestions\tIssues"];
+    reportRows().forEach(function(r){ lines.push([r.row, r.id, r.status, r.errors, r.warnings, r.suggestions, r.details.replace(/\n/g, " | ")].join("\t")); });
     var txt = lines.join("\n");
     (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(txt) : Promise.reject())
       .then(function(){ exportMsg.textContent = "Copied. Paste into Excel or Sheets."; })
@@ -1363,13 +1390,14 @@ function finish(text, issues, note, repaired) {
         { header: "Status", key: "status", width: 15 },
         { header: "Errors", key: "errors", width: 8 },
         { header: "Warnings", key: "warnings", width: 10 },
+        { header: "Suggestions", key: "suggestions", width: 13 },
         { header: "Issues", key: "details", width: 110 }
       ];
       ws.getRow(1).font = { bold: true };
       reportRows().forEach(function(r){
         var row = ws.addRow(r);
         row.getCell("details").alignment = { wrapText: true, vertical: "top" };
-        var colors = { "Errors": "FFB3261E", "Warnings only": "FF8A5A00", "Passed": "FF1D6F47" };
+        var colors = { "Errors": "FFB3261E", "Warnings only": "FF8A5A00", "Passed": "FF1D6F47", "Passed, with suggestions": "FF1B4F8F" };
         row.getCell("status").font = { bold: true, color: { argb: colors[r.status] } };
       });
       ws.views = [{ state: "frozen", ySplit: 1 }];
